@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Partnership Dashboard (Sample)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="sales_dashboard_data_SAMPLE.js"></script>
+<script src="partnership_referral_data_SAMPLE.js"></script>
+<style>
+
+  :root {
+    --bg: #FFFFFF;
+    --tile: #F5F5F5;
+    --text: #111111;
+    --muted: #666666;
+    --border: #E0E0E0;
+    --green: #2E7D32;
+    --red: #C62828;
+    --darkred: #8B0000;
+    --blue: #1F4E78;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .topbar {
+    position: sticky; top: 0; z-index: 1000;
+    background: #fff; border-bottom: 1px solid var(--border);
+    padding: 12px 20px 10px; box-shadow: var(--shadow);
+  }
+  .topbar-row1 {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px; gap: 12px; flex-wrap: wrap;
+  }
+  h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--blue); letter-spacing: .2px; }
+  .last-updated { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 3px; min-width: 140px; }
+  .filter-group label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+  select, input[type="month"] {
+    font-family: Arial, sans-serif; font-size: 13px;
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text); min-width: 150px;
+  }
+  .btn {
+    font-family: Arial, sans-serif; font-size: 13px; font-weight: 700;
+    padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--tile); color: var(--text); cursor: pointer;
+  }
+  .btn:hover { background: #eee; }
+  .btn-clear { background: #fff; border-color: var(--darkred); color: var(--darkred); }
+  .wrap { padding: 16px 20px 40px; max-width: 1600px; margin: 0 auto; }
+  .section-title {
+    font-size: 14px; font-weight: 700; color: var(--blue);
+    margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .6px;
+  }
+  .kpis {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px;
+  }
+  #kpisExtra {
+    grid-template-columns: repeat(3, 1fr);
+    margin-top: 10px;
+  }
+  @media (max-width: 1200px) { .kpis { grid-template-columns: repeat(4, 1fr); } #kpisExtra { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } #kpisExtra { grid-template-columns: 1fr; } }
+  .kpi .note { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  table.dash th:first-child, table.dash td:first-child { min-width: 28px; }
+  .nuts-break { font-size: 11px; line-height: 1.4; }
+  .kpi {
+    background: var(--tile); border-radius: 10px; padding: 14px 12px 12px;
+    box-shadow: var(--shadow); min-height: 92px;
+  }
+  .kpi .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+  .kpi .value { font-size: 28px; font-weight: 700; color: #111; margin-top: 6px; line-height: 1.1; }
+  .kpi .delta { font-size: 12px; font-weight: 700; margin-top: 6px; }
+  .kpi .value.sm { font-size: 18px; }
+  .delta.up { color: var(--green); }
+  .delta.down { color: var(--red); }
+  .delta.flat { color: var(--muted); }
+  .nuts-hint-btn {
+    display: inline-block;
+    margin: 18px 0 12px;
+    max-width: 100%;
+    text-align: left;
+    white-space: normal;
+    line-height: 1.35;
+    cursor: default;
+  }
+  .maps {
+    display: grid; grid-template-columns: 1fr; gap: 14px;
+    margin-bottom: 8px;
+  }
+  .map-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .map-card h3 {
+    margin: 0; padding: 10px 14px; font-size: 13px; background: var(--tile);
+    border-bottom: 1px solid var(--border); color: var(--blue);
+  }
+  .map { height: 560px; width: 100%; }
+  .leaflet-container { background: #d4dee8 !important; }
+  .leaflet-tile-pane { display: none !important; }
+  .map-legend {
+    padding: 8px 14px 10px; font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid #ccc; display: inline-block; }
+  .chart-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px 8px; box-shadow: var(--shadow);
+  }
+  .chart-card h3 { margin: 0 0 8px; font-size: 13px; color: var(--blue); }
+  .chart-wrap { position: relative; height: 300px; }
+  .chart-wrap.sm { height: 260px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 22px; margin-bottom: 22px; }
+  .row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .row-2, .row-split { grid-template-columns: 1fr; } }
+  .table-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; box-shadow: var(--shadow); overflow: auto; max-height: 520px;
+  }
+  .table-card h3 { margin: 0 0 8px; font-size: 13px; color: var(--blue); background: #fff; }
+  table.dash {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  table.dash th {
+    text-align: left; padding: 8px 8px; background: var(--tile);
+    border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .3px; position: sticky; top: 0; z-index: 1;
+  }
+  table.dash td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+  table.dash tr.top1 td {
+    background: var(--darkred); color: #fff; font-weight: 700;
+  }
+  table.dash tr:hover td { background: #fafafa; }
+  table.dash tr.top1:hover td { background: var(--darkred); }
+  .td-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .footnote { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .error-banner {
+    background: #fff3f3; border: 1px solid var(--red); color: var(--darkred);
+    padding: 14px 18px; margin: 16px 20px; border-radius: 8px; font-size: 13px;
+  }
+  .example-banner {
+    background: #F5F5F5; border-bottom: 1px solid var(--border);
+    padding: 8px 20px; font-size: 12px; color: var(--muted);
+  }
+  #findingStrip {
+    background: #fff3f3;
+    border: 1px solid var(--darkred);
+    color: var(--darkred);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 16px;
+  }
+
+  .period-banner {
+    font-size: 12px; color: var(--muted); margin: -4px 0 12px; line-height: 1.45;
+  }
+  .period-banner b { color: var(--text); }
+  .week-read {
+    background: #F7F9FC; border: 1px solid var(--border); border-left: 4px solid var(--blue);
+    border-radius: 8px; padding: 12px 16px; margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: #222;
+  }
+  .week-read b.label { color: var(--blue); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; display: block; margin-bottom: 4px; }
+  .matrix-wrap { overflow: auto; margin-bottom: 8px; }
+  table.matrix {
+    width: 100%; border-collapse: collapse; font-size: 13px; background: #fff;
+    border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  table.matrix th, table.matrix td {
+    padding: 10px 12px; border-bottom: 1px solid #f0f0f0; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.matrix th:first-child, table.matrix td:first-child { text-align: left; font-weight: 700; color: var(--blue); }
+  table.matrix thead th {
+    background: var(--tile); font-size: 11px; text-transform: uppercase; letter-spacing: .35px;
+    color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border);
+  }
+  table.matrix tbody tr:last-child td { border-bottom: none; }
+  table.matrix .delta-cell.up { color: var(--green); font-weight: 700; }
+  table.matrix .delta-cell.down { color: var(--red); font-weight: 700; }
+  table.matrix .delta-cell.flat { color: var(--muted); font-weight: 600; }
+  table.matrix .sub { display: block; font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .def-note {
+    font-size: 11px; color: var(--muted); margin: 8px 0 0; line-height: 1.4;
+  }
+  .type-pill {
+    display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .3px; padding: 2px 7px; border-radius: 99px; background: #E8EEF5; color: var(--blue);
+    white-space: nowrap;
+  }
+  .type-pill.partner { background: #F5E6E6; color: var(--darkred); }
+  .type-pill.soft { background: #FFF3E0; color: #E65100; }
+  .type-pill.ok { background: #E8F5E9; color: var(--green); }
+  .type-pill.skip { background: #EEEEEE; color: #666; }
+  #findingStrip {
+    background: #F7F9FC !important;
+    border: 1px solid var(--border) !important;
+    border-left: 4px solid var(--blue) !important;
+    color: #222 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    padding: 12px 16px !important;
+    border-radius: 8px;
+    line-height: 1.5;
+  }
+  #findingStrip b { color: var(--blue); font-weight: 700; }
+  table.dash td.move-cell { font-size: 12px; line-height: 1.4; max-width: 320px; }
+  table.dash td.evidence-cell { font-size: 11px; color: #444; line-height: 1.35; max-width: 260px; }
+
+
+  table.dash tr.type-start td { border-top: 2px solid var(--border); }
+  table.dash td.type-cell { vertical-align: top; white-space: nowrap; }
+  table.dash tr.opp-group td {
+    background: #F7F9FC; border-bottom: 1px solid var(--border);
+    padding: 10px 12px; vertical-align: top;
+  }
+  table.dash tr.opp-group .opp-play {
+    display: block; margin-top: 4px; font-size: 12px; font-weight: 600; color: #333; line-height: 1.4;
+    text-transform: none; letter-spacing: 0;
+  }
+  table.dash tr.opp-group:hover td { background: #F7F9FC; }
+  table.dash td.focus-cell { font-size: 12px; line-height: 1.4; max-width: 240px; color: #222; font-weight: 600; }
+  table.dash td.focus-cell .focus-muted { font-weight: 500; color: var(--muted); }
+
+  table.dash td.move-cell { vertical-align: top; }
+
+  .kpi-action:hover { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .kpi-action .note { color: var(--blue); font-weight: 700; }
+  #kpisExtra { grid-template-columns: repeat(4, 1fr); }
+
+  #keyInsight {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--blue);
+    border-radius: 10px;
+    padding: 14px 16px 12px;
+    margin: 0 0 16px;
+    box-shadow: var(--shadow);
+  }
+  #keyInsight .ki-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin: 0 0 6px;
+  }
+  #keyInsight .ki-body {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #222;
+    margin: 0;
+  }
+  #keyInsight .ki-body b { color: #111; }
+.section-title .cap-note {
+    font-size: 11px; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0;
+    margin-left: 8px;
+  }
+
+
+  .sample-banner {
+    background: #8B0000; color: #fff; font-size: 13px; font-weight: 700;
+    padding: 8px 20px; text-align: center; letter-spacing: .2px;
+  }
+</style>
+</head>
+<body>
+<div class="sample-banner">SAMPLE / FICTIONAL DATA — not real customers, colleagues, locations, volumes or costs. Layout example only. Do not treat any figure as live performance.</div>
+<div class="topbar">
+  <div class="topbar-row1">
+    <h1>Partnership Dashboard (Sample)</h1>
+    <div class="last-updated" id="lastUpdated">Last Updated: —</div>
+  </div>
+  <div class="filters">
+    <div class="filter-group">
+      <label>Tesla Location</label>
+      <select id="fStore"><option value="">All locations</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Sales leader</label>
+      <select id="fLeader"><option value="">All leaders</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Region Level 1</label>
+      <select id="fNuts1"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Region Level 2</label>
+      <select id="fNuts3"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Report Date</label>
+      <select id="fReportDate"><option value="">All</option></select>
+    </div>
+    <button class="btn btn-clear" id="btnClear" type="button">Clear All Filters</button>
+  </div>
+</div>
+<div id="errorBox" class="error-banner" style="display:none"></div>
+
+<div class="wrap">
+<div class="period-banner" id="periodBanner">—</div>
+  <div id="keyInsight">
+    <div class="ki-label">Key insight</div>
+    <p class="ki-body" id="keyInsightBody">Loading…</p>
+  </div>
+
+<div class="section-title">Performance matrix</div>
+  <div class="matrix-wrap">
+    <table class="matrix" id="tblMatrix">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>LW</th>
+          <th>PW</th>
+          <th>Δ vs PW</th>
+          <th>YTD</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section-title" style="margin-top:18px">Referral snapshot</div>
+  <div class="kpis" id="kpisExtra"></div>
+
+  
+
+
+  <div class="section-title">Top opportunities</div>
+  <div class="table-card">
+    <table class="dash" id="tblAction">
+      <thead>
+        <tr>
+          <th>Store</th>          <th>Leader</th>          <th>Why it matters</th>          <th>Local focus</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+<div class="section-title">Store leaderboard</div>
+  <div class="table-card">
+    <table class="dash" id="tblStores">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Store</th>
+          <th>Leader</th>
+          <th class="td-num">Influenced page visitors</th>
+          <th class="td-num">Assisted orders</th>
+          <th class="td-num">Orders</th>
+          <th class="td-num">Quotes</th>
+          <th>Active Regions (Orders)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+
+  
+<button class="btn nuts-hint-btn" type="button">Choose a region on the map for store details &amp; stats (weekly / monthly / YTD)</button>
+  <div class="maps">
+    <div class="map-card">
+      <h3 id="mapTitle">Quotes &amp; Orders</h3>
+      <div id="mapMain" class="map"></div>
+      <div class="map-legend" id="legendMain"></div>
+    </div>
+  </div>
+  <div class="table-card" style="display:none;margin-top:14px;max-height:none" id="nutsPanelCard">
+    <h3 id="nutsPanelTitle">NUTS3 + store</h3>
+    <div id="nutsPanel" class="footnote" style="margin:0"></div>
+  </div>
+
+  <div class="row-2">
+    <div class="chart-card"><h3>Product mix on sample orders</h3><div class="chart-wrap sm"><canvas id="chartMix"></canvas></div></div>
+    <div class="chart-card"><h3>Order status</h3><div class="chart-wrap sm"><canvas id="chartOrderStatus"></canvas></div></div>
+    <div class="chart-card"><h3>Quote status</h3><div class="chart-wrap sm"><canvas id="chartQuoteStatus"></canvas></div></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  if (!window.SALES_DATA || !window.SALES_GEO) {
+    document.getElementById('errorBox').style.display = 'block';
+    document.getElementById('errorBox').innerHTML =
+      '<b>Sales dashboard data not loaded.</b> Keep <code>sales_dashboard_data_SAMPLE.js</code> next to this HTML.';
+    return;
+  }
+
+  const DATA = window.SALES_DATA;
+  const GEO = window.SALES_GEO;
+  const GREEN = '#2E7D32', RED = '#C62828', DARKRED = '#8B0000';
+  const COLORS = ['#1F4E78','#2E7D32','#F9A825','#6A1B9A','#00838F','#C62828','#5D4037','#455A64'];
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => (n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-GB'));
+  const fmtPct = (n) => (n == null || isNaN(n) ? '—' : (n * 100).toFixed(1) + '%');
+
+  function isoLocal(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+  function lastCompletedWeekRange(today = new Date()) {
+    const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const day = t.getDay();
+    const thisMon = new Date(t);
+    thisMon.setDate(t.getDate() - (day === 0 ? 6 : day - 1));
+    const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+    const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1);
+    const prevMon = new Date(lastMon); prevMon.setDate(lastMon.getDate() - 7);
+    const prevSun = new Date(lastMon); prevSun.setDate(lastMon.getDate() - 1);
+    return { lwStart: isoLocal(lastMon), lwEnd: isoLocal(lastSun), pwStart: isoLocal(prevMon), pwEnd: isoLocal(prevSun) };
+  }
+  function inRange(isoDate, start, end) {
+    if (!isoDate) return false;
+    return isoDate >= start && isoDate <= end;
+  }
+  function ytdStart(refDateISO) {
+    // Partnership YTD from 1 May (not calendar 1 Jan). v2 store = nearest Tesla.com UK pin.
+    const y = (refDateISO || isoLocal(new Date())).slice(0, 4);
+    return y + '-05-01';
+  }
+  function thisMonthKey(refDateISO) {
+    return (refDateISO || isoLocal(new Date())).slice(0, 7);
+  }
+  function todayISO() {
+    return isoLocal(new Date());
+  }
+  function isQuoteExpired(q) {
+    if (q && q.expired) return true;
+    const exp = q && q.expires;
+    if (!exp) return false;
+    return String(exp).slice(0, 10) < todayISO();
+  }
+  function isValidOpenQuote(q) {
+    return q && !q.isConverted && !isQuoteExpired(q);
+  }
+
+  const DATA_ASOF = DATA.lastOrderDate || DATA.lastQuoteDate || isoLocal(new Date());
+  const WR = lastCompletedWeekRange();
+  const YTD0 = ytdStart(DATA_ASOF);
+  const MONTH_KEY = thisMonthKey(DATA_ASOF);
+
+  const state = {
+    store: '', leader: '',
+    nuts1: '', nuts3: '',
+    reportDate: '',
+    mapMetric: 'combined',
+  };
+
+  function uniqueSorted(arr) {
+    return Array.from(new Set(arr.filter(Boolean))).sort((a,b) => String(a).localeCompare(String(b)));
+  }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  }
+  function storeLabel(row) {
+    return row.storeName || row.storeTrt || 'Unmapped';
+  }
+  function isCancelled(o) {
+    return !!(o.cancelled || String(o.status || '').toLowerCase() === 'cancelled');
+  }
+
+  function buildFilters() {
+    const stores = DATA.stores || [];
+    function isExcludedLocation(s) {
+      const n = String(s.storeName || '');
+      if (!n) return true;
+      if (/^(EU-|EMEA-)/i.test(n)) return true;
+      if (/self-?serve\s*test\s*drive/i.test(n)) return true;
+      if (/\bvirtual\b/i.test(n)) return true;
+      return false;
+    }
+    $('fStore').innerHTML = '<option value="">All locations</option>' + stores
+      .filter(s => s.storeName && !isExcludedLocation(s))
+      .slice().sort((a,b) => (a.storeName||'').localeCompare(b.storeName||''))
+      .map(s => `<option value="${esc(s.storeTrt)}">${esc(s.storeName)}</option>`).join('');
+
+    const leaders = uniqueSorted(stores.map(s => s.manager).filter(Boolean));
+    $('fLeader').innerHTML = '<option value="">All leaders</option>' + leaders.map(l =>
+      `<option value="${esc(l)}">${esc(l)}</option>`).join('');
+
+    const allN1 = uniqueSorted(DATA.orders.concat(DATA.quotes).map(x => x.nuts1));
+    $('fNuts1').innerHTML = '<option value="">All</option>' + allN1.map(c =>
+      `<option value="${c}">${c} — ${DATA.nuts1Names[c] || c}</option>`).join('');
+
+    refreshNuts3();
+    $('fReportDate').innerHTML = '<option value="">All</option>' + (DATA.months||[]).map(m =>
+      `<option value="${m}">${m}</option>`).join('');
+
+    ['fStore','fLeader','fNuts1','fNuts3','fReportDate'].forEach(id => {
+      $(id).addEventListener('change', () => {
+        state.store = $('fStore').value;
+        state.leader = $('fLeader').value;
+        state.nuts1 = $('fNuts1').value;
+        if (id === 'fNuts1') { state.nuts3 = ''; refreshNuts3(); }
+        state.nuts3 = $('fNuts3').value;
+        state.reportDate = $('fReportDate').value;
+        renderAll();
+      });
+    });
+    $('btnClear').addEventListener('click', () => {
+      state.store = state.leader = state.nuts1 = state.nuts3 = '';
+      state.reportDate = '';
+      ['fStore','fLeader','fNuts1','fNuts3','fReportDate'].forEach(id => $(id).value = '');
+      refreshNuts3();
+      renderAll();
+    });
+  }
+
+  function refreshNuts3() {
+    const src = DATA.orders.concat(DATA.quotes);
+    let opts = uniqueSorted(src.filter(x => {
+      if (state.nuts1 && x.nuts1 !== state.nuts1) return false;
+      if (state.store && x.storeTrt !== state.store) return false;
+      if (state.leader && x.storeManager !== state.leader) return false;
+      return true;
+    }).map(x => x.nuts3));
+    $('fNuts3').innerHTML = '<option value="">All</option>' + opts.map(c =>
+      `<option value="${c}">${c} — ${DATA.nutsNames[c] || c}</option>`).join('');
+    if (state.nuts3 && !opts.includes(state.nuts3)) state.nuts3 = '';
+    $('fNuts3').value = state.nuts3;
+  }
+
+  function passStore(row) {
+    if (state.store && row.storeTrt !== state.store) return false;
+    if (state.leader && row.storeManager !== state.leader) return false;
+    if (state.nuts1 && row.nuts1 !== state.nuts1) return false;
+    if (state.nuts3 && row.nuts3 !== state.nuts3) return false;
+    return true;
+  }
+
+  function geoFiltered() {
+    const orders = DATA.orders.filter(passStore);
+    const quotes = DATA.quotes.filter(q => passStore(q) && (q.tier || 'A') === 'A');
+    return { orders, quotes };
+  }
+
+  function asOfISO() {
+    if (!state.reportDate) return DATA_ASOF;
+    const parts = state.reportDate.split('-');
+    const last = new Date(Number(parts[0]), Number(parts[1]), 0);
+    const iso = isoLocal(last);
+    return iso < DATA_ASOF ? iso : DATA_ASOF;
+  }
+
+  function weekRangeAsOf() {
+    const iso = asOfISO();
+    const d = new Date(iso + 'T00:00:00');
+    return lastCompletedWeekRange(d);
+  }
+
+  function filteredSets() {
+    let { orders, quotes } = geoFiltered();
+    if (state.reportDate) {
+      orders = orders.filter(o => o.month === state.reportDate);
+      quotes = quotes.filter(q => q.month === state.reportDate);
+    }
+    return { orders, quotes };
+  }
+
+  function inPeriod(iso, period, wr) {
+    if (!iso) return false;
+    const weeks = wr || weekRangeAsOf();
+    const asOf = asOfISO();
+    if (period === 'lw') return inRange(iso, weeks.lwStart, weeks.lwEnd);
+    if (period === 'month') return (iso || '').slice(0, 7) === (state.reportDate || MONTH_KEY);
+    return iso >= YTD0 && iso <= asOf;
+  }
+  function periodOrders(orders) { return orders; }
+  function periodQuotes(quotes) { return quotes; }
+
+  function deltaHtml(cur, prev, invert) {
+    if (prev == null || prev === 0) {
+      if (!cur) return '<div class="delta flat">vs PW —</div>';
+      return `<div class="delta ${invert ? 'down' : 'up'}">vs PW n/a</div>`;
+    }
+    const d = cur - prev;
+    const pct = d / prev;
+    let cls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
+    if (invert && d !== 0) cls = cls === 'up' ? 'down' : 'up';
+    const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '●');
+    return `<div class="delta ${cls}">${arrow} ${fmtPct(Math.abs(pct))} vs PW (${fmt(prev)})</div>`;
+  }
+
+  function topStore(rows) {
+    const c = {};
+    rows.forEach(r => { const k = storeLabel(r); c[k] = (c[k] || 0) + 1; });
+    let best = [], n = 0;
+    Object.keys(c).forEach(k => {
+      if (c[k] > n) { n = c[k]; best = [k]; }
+      else if (c[k] === n && n > 0) best.push(k);
+    });
+    return { names: best, n: n };
+  }
+
+  function regionNames(rows) {
+    return uniqueSorted(rows.map(r => r.nuts3Name || r.nuts3).filter(Boolean));
+  }
+
+  function watchNuts(oLW, qLW) {
+    const { oB, qBy, meta } = nutsAgg(oLW, qLW);
+    const keys = Object.keys(qBy).filter(k => k !== '(none)');
+    keys.sort((a,b) => (qBy[b] || []).length - (qBy[a] || []).length);
+    let watch = null;
+    keys.forEach(k => {
+      if (watch) return;
+      const qn = (qBy[k] || []).length;
+      const on = oB[k] || 0;
+      if (qn >= 3 && (on === 0 || (qBy[k].filter(q => q.isConverted).length / qn) < 0.2)) {
+        watch = { k, qn, on, m: meta[k] || {} };
+      }
+    });
+    if (!watch && keys[0]) {
+      const k = keys[0];
+      watch = { k, qn: (qBy[k] || []).length, on: oB[k] || 0, m: meta[k] || {} };
+    }
+    return watch;
+  }
+
+  function fmtDelta(cur, prev, invert) {
+    if (prev == null || prev === 0) {
+      if (!cur) return { html: '—', cls: 'flat', text: '—' };
+      return { html: 'n/a', cls: invert ? 'down' : 'up', text: 'n/a' };
+    }
+    const d = cur - prev;
+    const pct = d / prev;
+    let cls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
+    if (invert && d !== 0) cls = cls === 'up' ? 'down' : 'up';
+    const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '●');
+    const text = arrow + ' ' + fmtPct(Math.abs(pct));
+    return { html: text, cls: cls, text: text, pct: pct, d: d };
+  }
+
+  function fmtPp(cur, prev, invert) {
+    if (cur == null || prev == null) return { html: '—', cls: 'flat' };
+    const pp = (cur - prev) * 100;
+    let cls = pp > 0.05 ? 'up' : (pp < -0.05 ? 'down' : 'flat');
+    if (invert && Math.abs(pp) > 0.05) cls = cls === 'up' ? 'down' : 'up';
+    const arrow = pp > 0.05 ? '▲' : (pp < -0.05 ? '▼' : '●');
+    const text = arrow + ' ' + Math.abs(pp).toFixed(1) + ' pp';
+    return { html: text, cls: cls, pp: pp };
+  }
+
+  function renderPeriodBanner(wr) {
+    const el = $('periodBanner');
+    if (!el) return;
+    el.innerHTML =
+      '<b>Sample</b> = fictional hub, not a live store · ' +
+      '<b>LW</b> = last completed Mon–Sun (' + esc(wr.lwStart) + ' → ' + esc(wr.lwEnd) + ') · ' +
+      '<b>PW</b> = prior week (' + esc(wr.pwStart) + ' → ' + esc(wr.pwEnd) + ') · ' +
+      '<b>YTD</b> = from ' + esc(YTD0) + ' → as-of ' + esc(asOfISO()) + ' (sample window from May)' +
+      (state.reportDate ? ' · <b>Month filter</b> ' + esc(state.reportDate) : '');
+  }
+
+  function renderMatrix(geoOrders, geoQuotes) {
+    const wr = weekRangeAsOf();
+    const asOf = asOfISO();
+    renderPeriodBanner(wr);
+    const orders = geoOrders.filter(o => o.created && o.created <= asOf);
+    const quotes = geoQuotes.filter(q => q.created && q.created <= asOf);
+    const oYTD = orders.filter(o => o.created >= YTD0);
+    const qYTD = quotes.filter(q => q.created >= YTD0);
+    const oLW = orders.filter(o => inRange(o.created, wr.lwStart, wr.lwEnd));
+    const qLW = quotes.filter(q => inRange(q.created, wr.lwStart, wr.lwEnd));
+    const oPW = orders.filter(o => inRange(o.created, wr.pwStart, wr.pwEnd));
+    const qPW = quotes.filter(q => inRange(q.created, wr.pwStart, wr.pwEnd));
+    const cYTD = oYTD.filter(isCancelled);
+    const cLW = oLW.filter(isCancelled);
+    const cPW = oPW.filter(isCancelled);
+    // Open quotes still valid as of now, attributed by quote created week / YTD
+    const openAll = quotes.filter(isValidOpenQuote);
+    const openYTD = openAll.filter(q => q.created && q.created >= YTD0);
+    const openLW = openAll.filter(q => inRange(q.created, wr.lwStart, wr.lwEnd));
+    const openPW = openAll.filter(q => inRange(q.created, wr.pwStart, wr.pwEnd));
+    const conv = (qs) => {
+      if (!qs.length) return null;
+      return qs.filter(q => q.isConverted).length / qs.length;
+    };
+    const convY = conv(qYTD), convLW = conv(qLW), convPW = conv(qPW);
+
+    const dOrd = fmtDelta(oLW.length, oPW.length, false);
+    const dQuo = fmtDelta(qLW.length, qPW.length, false);
+    const dOpen = fmtDelta(openLW.length, openPW.length, false);
+    const dConv = fmtPp(convLW, convPW, false);
+    const dCan = fmtDelta(cLW.length, cPW.length, true);
+
+    const rows = [
+      ['Orders', fmt(oLW.length), fmt(oPW.length), dOrd, fmt(oYTD.length)],
+      ['Total Quotes', fmt(qLW.length), fmt(qPW.length), dQuo, fmt(qYTD.length)],
+      ['Open Quotes', fmt(openLW.length), fmt(openPW.length), dOpen, fmt(openYTD.length)],
+      ['Conversion %', fmtPct(convLW), fmtPct(convPW), dConv, fmtPct(convY)],
+      ['Cancellations', fmt(cLW.length), fmt(cPW.length), dCan, fmt(cYTD.length)],
+    ];
+
+    const tb = $('tblMatrix') && $('tblMatrix').querySelector('tbody');
+    if (tb) {
+      tb.innerHTML = rows.map(r => {
+        const d = r[3];
+        const dHtml = (typeof d === 'object')
+          ? `<span class="delta-cell ${d.cls}">${d.html}</span>`
+          : esc(String(d));
+        return `<tr>
+          <td>${r[0]}</td>
+          <td>${r[1]}</td>
+          <td>${r[2]}</td>
+          <td>${dHtml}</td>
+          <td>${r[4]}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    return {
+      wr, oLW, oPW, qLW, qPW, oYTD, qYTD, cLW, cPW, cYTD,
+      convLW, convPW, convY, dOrd, dQuo, dConv, openAll, orders, quotes,
+    };
+  }
+
+
+
+  function referralIndex() {
+    const R = window.SAMPLE_REFERRAL;
+    if (!R || !R.stores) return { byTrt: {}, byName: {}, totals: { visitors: 0, leads: 0, orders: 0 }, best: {} };
+    const byTrt = {}, byName = {};
+    R.stores.forEach(s => {
+      if (s.storeTrt) byTrt[s.storeTrt] = s;
+      const nk = String(s.storeName || '').toLowerCase();
+      if (nk) byName[nk] = s;
+    });
+    return { byTrt, byName, totals: R.totals || {}, best: R.best || {}, meta: R };
+  }
+
+  function lookupReferral(storeTrt, storeName) {
+    const idx = referralIndex();
+    if (storeTrt && idx.byTrt[storeTrt]) return idx.byTrt[storeTrt];
+    function norm(s) {
+      return String(s || '').toLowerCase()
+        .replace(/^tesla\s+(centre|center|store|cpo|pop\s*up)\s*-?\s*/i, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    }
+    const nk = String(storeName || '').toLowerCase();
+    if (nk && idx.byName[nk]) return idx.byName[nk];
+    const nn = norm(storeName);
+    if (nn) {
+      for (const k of Object.keys(idx.byName)) {
+        if (norm(k) === nn) return idx.byName[k];
+      }
+      for (const k of Object.keys(idx.byName)) {
+        const kk = norm(k);
+        if (kk && nn && (kk.indexOf(nn) >= 0 || nn.indexOf(kk) >= 0)) return idx.byName[k];
+      }
+    }
+    for (const k of Object.keys(idx.byName)) {
+      if (nk && (k.indexOf(nk) >= 0 || nk.indexOf(k) >= 0)) return idx.byName[k];
+    }
+    return null;
+  }
+
+  function leaderForStore(storeTrt, storeName) {
+    const ref = lookupReferral(storeTrt, storeName) || {};
+    if (ref.manager) return ref.manager;
+    // Match the sample hub list by normalised name when available on window
+    const stores = (DATA && DATA.stores) || [];
+    function norm(s) {
+      return String(s || '').toLowerCase()
+        .replace(/^tesla\s+(centre|center|store|cpo|pop\s*up)\s*-?\s*/i, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    }
+    const nn = norm(storeName);
+    for (let i = 0; i < stores.length; i++) {
+      const s = stores[i];
+      if (!s || !s.manager) continue;
+      if (norm(s.storeName) === nn) return s.manager;
+      const a = norm(s.storeName), b = nn;
+      if (a && b && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0)) return s.manager;
+    }
+    return '';
+  }
+
+
+  function bristolCityRingNote() {
+    return '';
+  }
+
+  function renderKPIs(mapOrders, mapQuotes) {
+    const geo = geoFiltered();
+    renderMatrix(geo.orders, geo.quotes);
+
+    const idx = referralIndex();
+    const T = idx.totals || {};
+    const best = idx.best || {};
+    const period = (idx.meta && idx.meta.periodLabel) ? idx.meta.periodLabel : 'Referral report';
+
+    function bestLine(arr, unit) {
+      if (!arr || !arr.length) return '<div class="delta flat">No store data</div>';
+      return arr.map((b, i) => {
+        const name = esc(b.storeName || '—');
+        const n = fmt(b.n);
+        return `<div class="delta flat">${i === 0 ? 'Best: ' : ''}<b>${name}</b> (${n}${unit})</div>`;
+      }).join('');
+    }
+    function topTrt(arr) {
+      return (arr && arr[0] && arr[0].storeTrt) ? arr[0].storeTrt : '';
+    }
+
+    const extra = [
+      {
+        label: 'Influenced visitors',
+        value: fmt(T.visitors),
+        delta: bestLine(best.visitors, ''),
+        note: '',
+        storeTrt: topTrt(best.visitors),
+        sub: 'Sample landing page',
+      },
+      {
+        label: 'Influenced leads',
+        value: fmt(T.leads),
+        delta: bestLine(best.leads, ''),
+        note: '',
+        storeTrt: topTrt(best.leads),
+        sub: 'Assisted leads',
+      },
+      {
+        label: 'Influenced orders',
+        value: fmt(T.orders),
+        delta: bestLine(best.orders, ''),
+        note: '',
+        storeTrt: topTrt(best.orders),
+        sub: 'Assisted orders',
+      },
+    ];
+
+$('kpisExtra').innerHTML = extra.map(t => {
+      const click = t.storeTrt ? ` data-store="${esc(t.storeTrt)}" style="cursor:pointer"` : '';
+      const sub = t.sub ? `<div class="delta flat" style="margin-top:2px">${esc(t.sub)}</div>` : '';
+      return `<div class="kpi kpi-action"${click}><div class="label">${t.label}</div><div class="value${String(t.value).length > 22 ? ' sm' : ''}">${t.value}</div>${sub}${t.delta}${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}</div>`;
+    }).join('');
+
+    // 3-col snapshot
+    if ($('kpisExtra')) $('kpisExtra').style.gridTemplateColumns = 'repeat(3, 1fr)';
+
+    $('kpisExtra').querySelectorAll('.kpi-action[data-store]').forEach(el => {
+      el.addEventListener('click', () => {
+        const s = el.getAttribute('data-store');
+        if (!s) return;
+        state.store = s;
+        $('fStore').value = s;
+        renderAll();
+      });
+    });
+  }
+
+
+  function nutsAgg(orders, quotes) {
+    const meta = {};
+    const addMeta = (row, k) => {
+      meta[k] = meta[k] || { name: row.nuts3Name || DATA.nutsNames[k] || k, store: '', leader: '', storeTrt: '' };
+      if (row.storeName && !meta[k].store) meta[k].store = row.storeName;
+      if (row.storeManager && !meta[k].leader) meta[k].leader = row.storeManager;
+      if (row.storeTrt && !meta[k].storeTrt) meta[k].storeTrt = row.storeTrt;
+    };
+    const oB = {}, tB = {}, cB = {}, solarB = {};
+    orders.forEach(o => {
+      const k = o.nuts3 || '(none)';
+      oB[k] = (oB[k] || 0) + 1;
+      if (o.isTesla) tB[k] = (tB[k] || 0) + 1;
+      if (isCancelled(o)) cB[k] = (cB[k] || 0) + 1;
+      if (String(o.productType || '').toLowerCase().indexOf('solar') >= 0) solarB[k] = (solarB[k] || 0) + 1;
+      addMeta(o, k);
+    });
+    const qBy = {};
+    quotes.forEach(q => {
+      const k = q.nuts3 || '(none)';
+      (qBy[k] || (qBy[k] = [])).push(q);
+      addMeta(q, k);
+    });
+    return { oB, tB, cB, solarB, qBy, meta };
+  }
+
+  function renderNutsPanel(orders, quotes) {
+    const code = state.nuts3;
+    const title = $('nutsPanelTitle');
+    const box = $('nutsPanel');
+    if (!code) {
+      title.textContent = 'NUTS3 + store';
+      box.innerHTML = '';
+      if ($('nutsPanelCard')) $('nutsPanelCard').style.display = 'none';
+      return;
+    }
+    if ($('nutsPanelCard')) $('nutsPanelCard').style.display = '';
+    const name = DATA.nutsNames[code] || code;
+    const own = (DATA.nutsToStore && DATA.nutsToStore[code]) || {};
+    const oN = orders.filter(o => o.nuts3 === code);
+    const qN = quotes.filter(q => q.nuts3 === code);
+    const slice = (rows, period) => rows.filter(r => inPeriod(r.created, period));
+    const stat = (rows, period) => {
+      const r = slice(rows, period);
+      const tesla = r.filter(o => o.isTesla).length;
+      const canc = r.filter(isCancelled).length;
+      const solar = r.filter(o => String(o.productType || '').toLowerCase().indexOf('solar') >= 0).length;
+      return { n: r.length, tesla, canc, solar };
+    };
+    const qo = (period) => slice(qN, period);
+    const oLW = stat(oN, 'lw'), oM = stat(oN, 'month'), oY = stat(oN, 'ytd');
+    const qLW = qo('lw'), qM = qo('month'), qY = qo('ytd');
+    const openN = qN.filter(isValidOpenQuote).length;
+    const convY = qY.length ? qY.filter(q => q.isConverted).length / qY.length : null;
+    const teslaPct = oY.n ? oY.tesla / oY.n : null;
+    title.textContent = code + ' — ' + name;
+    box.innerHTML = `
+      <div style="font-size:13px;color:#111;margin-bottom:8px">
+        <b>Store:</b> ${esc(own.storeName || 'Unmapped')}
+        &nbsp;·&nbsp; <b>Leader:</b> ${esc(own.manager || '—')}
+        &nbsp;·&nbsp; <b>Region:</b> ${esc(own.region || '—')}
+      </div>
+      <table class="dash">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="td-num">Orders</th>
+            <th class="td-num">Quotes</th>
+            <th class="td-num">Canc</th>
+            <th class="td-num">Tesla %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Last week</td>
+            <td class="td-num">${fmt(oLW.n)}</td>
+            <td class="td-num">${fmt(qLW.length)}</td>
+            <td class="td-num">${fmt(oLW.canc)}</td>
+            <td class="td-num">${oLW.n ? fmtPct(oLW.tesla / oLW.n) : '—'}</td>
+          </tr>
+          <tr>
+            <td>This month (${esc(state.reportDate || MONTH_KEY)})</td>
+            <td class="td-num">${fmt(oM.n)}</td>
+            <td class="td-num">${fmt(qM.length)}</td>
+            <td class="td-num">${fmt(oM.canc)}</td>
+            <td class="td-num">${oM.n ? fmtPct(oM.tesla / oM.n) : '—'}</td>
+          </tr>
+          <tr>
+            <td>YTD</td>
+            <td class="td-num">${fmt(oY.n)}</td>
+            <td class="td-num">${fmt(qY.length)}</td>
+            <td class="td-num">${fmt(oY.canc)}</td>
+            <td class="td-num">${fmtPct(teslaPct)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;margin-top:10px;color:#111">
+        <b>${fmt(openN)}</b> still-valid open quotes in this NUTS3.
+        YTD conversion ${fmtPct(convY)}.
+      </div>
+      ''
+
+    `;
+  }
+
+  let mapMain, layerMain, landLayer;
+  function colorScale(v, max) {
+    if (!max || !v) return '#EEEEEE';
+    const t = Math.min(1, v / max);
+    const r = Math.round(31 + (139 - 31) * t);
+    const g = Math.round(78 + (0 - 78) * t);
+    const b = Math.round(120 + (0 - 120) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+  function initMaps() {
+    mapMain = L.map('mapMain', { scrollWheelZoom: true, attributionControl: false }).setView([54.5, -2.5], 6);
+  }
+  function ensureLandLayer() {
+    if (landLayer || !mapMain || typeof GEO === "undefined") return;
+    if (!mapMain.getPane("land")) {
+      mapMain.createPane("land");
+      mapMain.getPane("land").style.zIndex = 250;
+    }
+    landLayer = L.geoJSON(GEO, {
+      pane: "land",
+      interactive: false,
+      style: { fillColor: "#eef1f4", fillOpacity: 1, color: "#d5dbe3", weight: 0.4, opacity: 1 },
+    }).addTo(mapMain);
+  }
+  function countsByNuts(rows) {
+    const c = {};
+    rows.forEach(r => { if (r.nuts3) c[r.nuts3] = (c[r.nuts3] || 0) + 1; });
+    return c;
+  }
+
+  function renderMaps(orders, quotes) {
+    ensureLandLayer();
+    const cq = countsByNuts(quotes);
+    const co = countsByNuts(orders);
+    const teslaN = {};
+    orders.forEach(o => {
+      if (!o.nuts3) return;
+      teslaN[o.nuts3] = teslaN[o.nuts3] || { t: 0, n: 0 };
+      teslaN[o.nuts3].n += 1;
+      if (o.isTesla) teslaN[o.nuts3].t += 1;
+    });
+    const intensity = {};
+    const keys = new Set([...Object.keys(cq), ...Object.keys(co)]);
+    const zeroMetric = state.mapMetric === 'zero_orders' || state.mapMetric === 'zero_quotes';
+    if (zeroMetric) {
+      const nts = DATA.nutsToStore || {};
+      Object.keys(nts).forEach(k => {
+        const own = nts[k] || {};
+        if (state.store && own.storeTrt !== state.store) return;
+        if (state.leader && own.manager !== state.leader) return;
+        if (state.nuts1 && String(k).slice(0, 3) !== state.nuts1) return;
+        if (state.nuts3 && k !== state.nuts3) return;
+        const n = state.mapMetric === 'zero_orders' ? (co[k] || 0) : (cq[k] || 0);
+        intensity[k] = n === 0 ? 1 : 0;
+      });
+    } else {
+      keys.forEach(k => {
+        if (state.mapMetric === 'orders') intensity[k] = co[k] || 0;
+        else if (state.mapMetric === 'quotes') intensity[k] = cq[k] || 0;
+        else if (state.mapMetric === 'tesla') {
+          const x = teslaN[k];
+          intensity[k] = x && x.n ? x.t / x.n : 0;
+        } else {
+          intensity[k] = (co[k] || 0) + (cq[k] || 0);
+        }
+      });
+    }
+    const maxI = (state.mapMetric === 'tesla' || zeroMetric)
+      ? 1
+      : Math.max(1, ...Object.values(intensity), 1);
+    if (layerMain) mapMain.removeLayer(layerMain);
+
+    function styleFor(code) {
+      const v = intensity[code] || 0;
+      return {
+        fillColor: colorScale(v, maxI),
+        weight: state.nuts3 === code ? 2.5 : 0.6,
+        color: state.nuts3 === code ? DARKRED : '#999',
+        fillOpacity: v ? 0.75 : 0.15,
+      };
+    }
+
+    layerMain = L.geoJSON(GEO, {
+      style: f => styleFor(f.properties.nuts3_code),
+      onEachFeature: function (feature, layer) {
+        const code = feature.properties.nuts3_code;
+        const name = feature.properties.nuts3_name || DATA.nutsNames[code] || code;
+        const qn = cq[code] || 0;
+        const on = co[code] || 0;
+        const store = (DATA.nutsToStore && DATA.nutsToStore[code]) || {};
+        const tx = teslaN[code];
+        layer.bindTooltip(
+          `<b>${code}</b> ${name}` +
+          `<br>Quotes: <b>${qn}</b>` +
+          `<br>Orders: <b>${on}</b>` +
+          (tx && tx.n ? `<br>Tesla owner: <b>${Math.round(100 * tx.t / tx.n)}%</b>` : '') +
+          (store.storeName ? `<br>Store: ${store.storeName}` : '') +
+          (store.manager ? `<br>Leader: ${store.manager}` : ''),
+          { sticky: true }
+        );
+        layer.on('click', () => {
+          state.nuts3 = code;
+          $('fNuts3').value = code;
+          if (feature.properties.nuts1_code) {
+            state.nuts1 = feature.properties.nuts1_code;
+            $('fNuts1').value = state.nuts1;
+          }
+          renderAll();
+          try {
+            mapMain.fitBounds(layer.getBounds(), { padding: [20, 20], maxZoom: 9 });
+          } catch (e) {}
+        });
+      },
+    }).addTo(mapMain);
+
+    $('legendMain').innerHTML = legendHtml(maxI);
+    if (state.mapMetric === 'orders') {
+      $('mapTitle').textContent = `Orders (${fmt(orders.length)} orders)`;
+    } else if (state.mapMetric === 'quotes') {
+      $('mapTitle').textContent = `Quotes (${fmt(quotes.length)} quotes)`;
+    } else if (state.mapMetric === 'tesla') {
+      $('mapTitle').textContent = 'Tesla owner % on orders';
+    } else if (state.mapMetric === 'zero_orders') {
+      const n = Object.values(intensity).filter(v => v).length;
+      $('mapTitle').textContent = `0 Orders (${fmt(n)} regions)`;
+    } else if (state.mapMetric === 'zero_quotes') {
+      const n = Object.values(intensity).filter(v => v).length;
+      $('mapTitle').textContent = `0 Quotes (${fmt(n)} regions)`;
+    } else {
+      $('mapTitle').textContent = `Quotes & Orders (${fmt(quotes.length)} quotes · ${fmt(orders.length)} orders)`;
+    }
+  }
+
+  function legendHtml(max) {
+    const right = state.mapMetric === 'tesla' ? '100% Tesla' : (
+      state.mapMetric === 'zero_orders' ? '0 orders' :
+      state.mapMetric === 'zero_quotes' ? '0 quotes' :
+      (fmt(max) + (
+      state.mapMetric === 'orders' ? ' orders' :
+      state.mapMetric === 'quotes' ? ' quotes' : ' quotes+orders'
+    )));
+    const left = state.mapMetric === 'tesla' ? '0%' :
+      (state.mapMetric === 'zero_orders' ? 'Has orders' :
+      (state.mapMetric === 'zero_quotes' ? 'Has quotes' : '0'));
+    return `<span>${left}</span>
+      <span class="swatch" style="background:#EEE"></span>
+      <span class="swatch" style="background:${colorScale(max*0.35,max)}"></span>
+      <span class="swatch" style="background:${colorScale(max*0.7,max)}"></span>
+      <span class="swatch" style="background:${colorScale(max,max)}"></span>
+      <span>${right}</span>`;
+  }
+
+  let chartMix, chartOrderStatus, chartQuoteStatus;
+  const ACTIVE_ORDER_STATUSES = new Set(['pending', 'signed off', 'ready for audit']);
+  function normStatus(s) { return String(s || '').trim().toLowerCase(); }
+  function isCancelledOrder(o) {
+    return !!(o.cancelled || normStatus(o.status) === 'cancelled');
+  }
+
+
+
+  function lastNCompletedWeeks(n, asOfDate) {
+    // Align with matrix: use same as-of date as weekRangeAsOf(), then step back 7 days each time
+    const weeks = [];
+    let wr = asOfDate ? lastCompletedWeekRange(asOfDate) : weekRangeAsOf();
+    for (let i = 0; i < n; i++) {
+      weeks.push({ start: wr.lwStart, end: wr.lwEnd });
+      const prevStart = new Date(wr.lwStart + 'T00:00:00');
+      prevStart.setDate(prevStart.getDate() - 7);
+      const prevEnd = new Date(wr.lwEnd + 'T00:00:00');
+      prevEnd.setDate(prevEnd.getDate() - 7);
+      wr = { lwStart: isoLocal(prevStart), lwEnd: isoLocal(prevEnd),
+             pwStart: wr.lwStart, pwEnd: wr.lwEnd };
+    }
+    return weeks;
+  }
+
+  function pctChange(cur, prev) {
+    if (prev == null || prev === 0) return null;
+    return (cur - prev) / prev;
+  }
+
+  function countInWeek(rows, start, end) {
+    return rows.filter(r => r.created && inRange(r.created, start, end)).length;
+  }
+
+  function topNuts(rows) {
+    const c = {};
+    rows.forEach(r => {
+      const code = r.nuts3;
+      if (!code) return;
+      const name = r.nuts3Name || (DATA.nutsNames && DATA.nutsNames[code]) || code;
+      if (!c[code]) c[code] = { code: code, name: name, n: 0, nuts1: r.nuts1 || String(code).slice(0, 3) };
+      c[code].n++;
+    });
+    return Object.keys(c).map(function (k) { return c[k]; })
+      .sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+  }
+
+  function nuts1Name(code) {
+    if (!code) return '';
+    if (DATA.nuts1Names && DATA.nuts1Names[code]) return DATA.nuts1Names[code];
+    const map = {
+      UKC: 'the North East', UKD: 'the North West', UKE: 'Yorkshire and the Humber',
+      UKF: 'the East Midlands', UKG: 'the West Midlands', UKH: 'the East of England',
+      UKI: 'London', UKJ: 'the South East', UKK: 'the South West',
+      UKL: 'Wales', UKM: 'Scotland', UKN: 'Northern Ireland'
+    };
+    return map[code] || code;
+  }
+
+  function shortStore(name) {
+    return String(name || '')
+      .replace(/^Tesla Centre\s*-\s*/i, '')
+      .replace(/^Tesla Pop Up\s*-\s*/i, '')
+      .replace(/^Tesla Store\s*-\s*/i, '')
+      .trim() || 'a store';
+  }
+
+
+  function renderKeyInsight() {
+    const el = $('keyInsightBody');
+    if (!el) return;
+
+    const asOf = asOfISO();
+    const geo = geoFiltered();
+    const orders = geo.orders.filter(function (o) { return o.created && o.created <= asOf; });
+    const quotes = geo.quotes.filter(function (q) { return q.created && q.created <= asOf; });
+    const openAll = quotes.filter(isValidOpenQuote);
+    const oYTD = orders.filter(function (o) { return o.created >= YTD0; });
+    const qYTD = quotes.filter(function (q) { return q.created >= YTD0; });
+
+    const asOfDate = new Date(asOfISO() + 'T00:00:00');
+    const weeks = lastNCompletedWeeks(4, asOfDate);
+    const lw = weeks[0];
+    const pw = weeks[1];
+    const oLW = countInWeek(orders, lw.start, lw.end);
+    const oPW = countInWeek(orders, pw.start, pw.end);
+    const qLW = countInWeek(quotes, lw.start, lw.end);
+    const qPW = countInWeek(quotes, pw.start, pw.end);
+    const dO = pctChange(oLW, oPW);
+    const dQ = pctChange(qLW, qPW);
+
+    const oSeries = weeks.map(function (w) { return countInWeek(orders, w.start, w.end); }).reverse();
+    const qSeries = weeks.map(function (w) { return countInWeek(quotes, w.start, w.end); }).reverse();
+    const o4 = oSeries.reduce(function (a, b) { return a + b; }, 0);
+    const q4 = qSeries.reduce(function (a, b) { return a + b; }, 0);
+
+    const storeSelected = !!(state.store && state.store !== '');
+    let storeLabel = '';
+    if (storeSelected) {
+      const hit = ((DATA.stores || []).find(function (s) { return s.storeTrt === state.store; })) || null;
+      storeLabel = shortStore((hit && hit.storeName) || state.store);
+    }
+
+    function changePhrase(n, d, label) {
+      // Avoid "down 100%" when both weeks are zero
+      if ((n || 0) === 0 && (d == null || !isFinite(d))) return label + ' ' + fmt(n);
+      if ((n || 0) === 0 && d === -1) return label + ' 0 (none this week or last)';
+      if (d == null || !isFinite(d)) return label + ' ' + fmt(n);
+      const pct = Math.round(Math.abs(d) * 100);
+      if (d < -0.02) return label + ' ' + fmt(n) + ' (down ' + pct + '% on the week before)';
+      if (d > 0.02) return label + ' ' + fmt(n) + ' (up ' + pct + '% on the week before)';
+      return label + ' ' + fmt(n) + ' (little changed on the week before)';
+    }
+
+    // —— Store filter: quiet / no recent activity ——
+    if (storeSelected) {
+      const noRecent = o4 === 0 && q4 === 0;
+      const noYtd = oYTD.length === 0 && qYTD.length === 0;
+      const ref = lookupReferral(state.store, storeLabel) || { visitors: 0, leads: 0, orders: 0 };
+      const vis = ref.visitors || 0;
+      const leads = ref.leads || 0;
+
+      if (noRecent && openAll.length === 0) {
+        let msg = storeLabel + ': no sample orders or quotes last week, and none across the last four complete weeks.';
+        if (noYtd) {
+          msg += ' No partnership YTD activity nearest this site either.';
+        } else {
+          msg += ' YTD still shows ' + fmt(oYTD.length) + ' order' + (oYTD.length === 1 ? '' : 's') +
+            ' and ' + fmt(qYTD.length) + ' quote' + (qYTD.length === 1 ? '' : 's') + ' nearest this site.';
+        }
+        if (vis > 0) {
+          msg += ' Referral link has ' + fmt(vis) + ' visit' + (vis === 1 ? '' : 's') +
+            ' and ' + fmt(leads) + ' assisted lead' + (leads === 1 ? '' : 's') + ' on record.';
+        } else {
+          msg += ' No referral-link visits on record for this site.';
+        }
+        el.textContent = msg;
+        return;
+      }
+
+      if (noRecent && openAll.length > 0) {
+        let msg = storeLabel + ': no new orders or quotes last week, and none across the last four complete weeks.';
+        msg += ' There ' + (openAll.length === 1 ? 'is ' : 'are ') + fmt(openAll.length) +
+          ' open quote' + (openAll.length === 1 ? '' : 's') + ' still nearest this site.';
+        if (vis > 0) {
+          msg += ' Referral link: ' + fmt(vis) + ' visit' + (vis === 1 ? '' : 's') +
+            ', ' + fmt(leads) + ' assisted lead' + (leads === 1 ? '' : 's') + '.';
+        }
+        el.textContent = msg;
+        return;
+      }
+
+      // Store with recent activity — local insight only
+      let text = storeLabel + ' — last week: ' + changePhrase(oLW, dO, 'orders') + '; ' +
+        changePhrase(qLW, dQ, 'quotes') + '.';
+      if (o4 > 0 || q4 > 0) {
+        text += ' Across the last four complete weeks: ' + fmt(o4) + ' order' + (o4 === 1 ? '' : 's') +
+          ' and ' + fmt(q4) + ' quote' + (q4 === 1 ? '' : 's') + ' in total.';
+        // One short colour note — no week-by-week "then" list
+        if (o4 === 0 && q4 === 1) {
+          text += ' Only a single quote in that stretch.';
+        } else if (o4 === 0 && q4 > 1) {
+          text += ' Quotes only — no orders in that stretch.';
+        } else if (q4 === 0 && o4 > 0) {
+          text += ' Orders only — no quotes in that stretch.';
+        } else if (oLW + qLW === 0 && (o4 + q4) > 0) {
+          text += ' Nothing landed last week, but there was some activity earlier in the stretch.';
+        }
+      }
+      text += ' Open quotes nearest this site: ' + fmt(openAll.length) +
+        '. YTD: ' + fmt(oYTD.length) + ' orders, ' + fmt(qYTD.length) + ' quotes.';
+      if (vis > 0 || leads > 0) {
+        text += ' Referral link: ' + fmt(vis) + ' visit' + (vis === 1 ? '' : 's') +
+          ', ' + fmt(leads) + ' assisted lead' + (leads === 1 ? '' : 's') + '.';
+        if (vis >= 5 && leads === 0) {
+          text += ' Visits without assisted leads — worth checking hand-off and messaging.';
+        } else if (openAll.length >= 10 && vis <= 4) {
+          text += ' Open demand is there; referral-link use still looks light.';
+        }
+      } else {
+        text += ' No referral-link visits on record yet.';
+      }
+      el.textContent = text;
+      return;
+    }
+
+    // —— All locations (no store filter) ——
+    let text = 'Last week: ' + changePhrase(oLW, dO, 'orders') + '; ' + changePhrase(qLW, dQ, 'quotes') + '.';
+
+    if (o4 === 0 && q4 === 0) {
+      text += ' No orders or quotes across the last four complete weeks in the current filters.';
+      el.textContent = text;
+      return;
+    }
+
+    text += ' Across the last four complete weeks: ' + fmt(o4) + ' order' + (o4 === 1 ? '' : 's') +
+      ' and ' + fmt(q4) + ' quote' + (q4 === 1 ? '' : 's') + ' in total.';
+
+    const dO4 = pctChange(oSeries[oSeries.length - 1], oSeries[0]);
+    const dQ4 = pctChange(qSeries[qSeries.length - 1], qSeries[0]);
+    const trendBits = [];
+    if (dO4 != null && isFinite(dO4) && oSeries[0] + oSeries[oSeries.length - 1] > 0) {
+      if (dO4 < -0.05) trendBits.push('orders end the stretch lower than four weeks ago');
+      else if (dO4 > 0.05) trendBits.push('orders end the stretch higher than four weeks ago');
+      else trendBits.push('orders finish the stretch roughly in line with four weeks ago');
+    }
+    if (dQ4 != null && isFinite(dQ4) && qSeries[0] + qSeries[qSeries.length - 1] > 0) {
+      if (dQ4 < -0.05) trendBits.push('quotes are lower');
+      else if (dQ4 > 0.05) trendBits.push('quotes are higher');
+      else trendBits.push('quotes are roughly level');
+    }
+    if (trendBits.length) text += ' In short, ' + trendBits.join(' and ') + '.';
+
+    const R = window.SAMPLE_REFERRAL;
+    if (R && R.stores && R.stores.length) {
+      const stores = R.stores.slice().sort(function (a, b) {
+        return (b.visitors || 0) - (a.visitors || 0);
+      });
+      const topRef = stores[0];
+      const n = stores.length || 1;
+      const n5plus = stores.filter(function (s) { return (s.visitors || 0) >= 5; }).length;
+      const n1to4 = stores.filter(function (s) {
+        const v = s.visitors || 0;
+        return v >= 1 && v <= 4;
+      }).length;
+      const p5 = Math.round(100 * n5plus / n);
+      const p14 = Math.round(100 * n1to4 / n);
+
+      if (topRef && (topRef.visitors || 0) > 0) {
+        text += ' On referrals, ' + shortStore(topRef.storeName) +
+          ' generated the most landing-page visits through its store link (' +
+          fmt(topRef.visitors) + ').';
+      }
+      text += ' Of store links on the list, ' + p5 + '% had 5 or more visits and ' +
+        p14 + '% had 1–4 visits.';
+
+      const openBy = {};
+      openAll.forEach(function (q) {
+        const k = q.storeTrt || q.storeName || '';
+        if (!k) return;
+        if (!openBy[k]) openBy[k] = { n: 0, name: q.storeName || k, trt: q.storeTrt || '' };
+        openBy[k].n++;
+        if (q.storeName) openBy[k].name = q.storeName;
+      });
+      const topOpen = Object.keys(openBy).map(function (k) { return openBy[k]; })
+        .sort(function (a, b) { return b.n - a.n; })[0];
+      if (topOpen) {
+        const refHit = lookupReferral(topOpen.trt, topOpen.name);
+        const vis = refHit ? (refHit.visitors || 0) : 0;
+        if (vis <= 2) {
+          text += ' ' + shortStore(topOpen.name) + ' holds the most open quotes (' +
+            fmt(topOpen.n) + '), but almost none of that demand is coming through its referral link (' +
+            fmt(vis) + ' visit' + (vis === 1 ? '' : 's') + ').';
+        } else {
+          text += ' ' + shortStore(topOpen.name) + ' holds the most open quotes (' +
+            fmt(topOpen.n) + ') and has ' + fmt(vis) + ' link visits on record.';
+        }
+      }
+    }
+
+    el.textContent = text;
+  }
+
+
+  function renderFinding() {
+    /* replaced by Key insight strip */
+  }
+
+
+  function renderActionList() {
+    const wr = weekRangeAsOf();
+    const asOf = asOfISO();
+    const geo = geoFiltered();
+    const orders = geo.orders.filter(o => o.created && o.created <= asOf);
+    const quotes = geo.quotes.filter(q => q.created && q.created <= asOf);
+    const oLW = orders.filter(o => inRange(o.created, wr.lwStart, wr.lwEnd));
+    const qLW = quotes.filter(q => inRange(q.created, wr.lwStart, wr.lwEnd));
+    const oPW = orders.filter(o => inRange(o.created, wr.pwStart, wr.pwEnd));
+    const qPW = quotes.filter(q => inRange(q.created, wr.pwStart, wr.pwEnd));
+    const oYTD = orders.filter(o => o.created >= YTD0);
+
+    const by = {};
+    function ens(row) {
+      const k = row.storeTrt || '(Unmapped)';
+      if (!by[k]) {
+        by[k] = {
+          storeTrt: k,
+          store: row.storeName || k,
+          leader: row.storeManager || '',
+          oYTD: 0, qYTD: 0, convYTD: 0,
+          oLW: 0, qLW: 0, oPW: 0, qPW: 0,
+          open: 0,
+        };
+      }
+      const b = by[k];
+      if (row.storeName && (!b.store || b.store === k)) b.store = row.storeName;
+      if (row.storeManager && !b.leader) b.leader = row.storeManager;
+      return b;
+    }
+    oYTD.forEach(o => { ens(o).oYTD++; });
+    quotes.filter(q => q.created >= YTD0).forEach(q => {
+      const b = ens(q); b.qYTD++; if (q.isConverted) b.convYTD++;
+    });
+    oLW.forEach(o => { ens(o).oLW++; });
+    qLW.forEach(q => { ens(q).qLW++; });
+    oPW.forEach(o => { ens(o).oPW++; });
+    qPW.forEach(q => { ens(q).qPW++; });
+    quotes.filter(isValidOpenQuote).forEach(q => { ens(q).open++; });
+    // Quote counts by store + NUTS3 (for "most quotes in your region")
+    const nutsQByStore = {};
+    quotes.forEach(function (q) {
+      if (!q.created || q.created > asOf) return;
+      if (q.created < YTD0) return;
+      const sk = q.storeTrt || '(Unmapped)';
+      const nk = q.nuts3;
+      if (!nk) return;
+      if (!nutsQByStore[sk]) nutsQByStore[sk] = {};
+      const name = q.nuts3Name || (DATA.nutsNames && DATA.nutsNames[nk]) || nk;
+      if (!nutsQByStore[sk][nk]) nutsQByStore[sk][nk] = { code: nk, name: name, n: 0 };
+      nutsQByStore[sk][nk].n++;
+    });
+    function topQuoteNuts(storeTrt) {
+      const bag = nutsQByStore[storeTrt || ''] || {};
+      const arr = Object.keys(bag).map(function (k) { return bag[k]; })
+        .sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+      return arr[0] || null;
+    }
+
+    // Pull referral stores so low-visit centres still appear
+    const R = window.SAMPLE_REFERRAL;
+    if (R && R.stores) {
+      R.stores.forEach(s => {
+        if (state.store && s.storeTrt && s.storeTrt !== state.store) return;
+        if (state.leader && s.manager && s.manager !== state.leader) return;
+        const key = s.storeTrt || s.storeName || '';
+        if (!key || by[key]) return;
+        by[key] = {
+          storeTrt: s.storeTrt || '',
+          store: s.storeName || key,
+          leader: s.manager || '',
+          oYTD: 0, qYTD: 0, convYTD: 0,
+          oLW: 0, qLW: 0, oPW: 0, qPW: 0,
+          open: 0,
+        };
+      });
+    }
+
+    const TYPE_ORDER = [
+      'Hand-off quality',
+      'High demand, low referral',
+      'Open quotes, low referral',
+      'Low conversion',
+      'Quiet week',
+      'Going well',
+    ];
+    const TYPE_MOVE = {
+      'Hand-off quality': 'Customers are hitting the link, but no assisted leads are generated — are we optimising the store referral link and consistently messaging the Tesla Ecosystem benefits?',
+      'High demand, low referral': 'Demand is nearest your site — are we educating prospects, sharing the right URL, and capturing leads before they leave?',
+      'Open quotes, low referral': 'Open sample quotes nearest this hub — are we promoting in store and using the store link when customers walk in?',
+      'Low conversion': 'Enough quotes nearest your site but conversion is weak — keep promoting, and flag the partner if conversion stays soft.',
+      'Quiet week': 'Quieter than last week — are we talking about the partnership more and sharing the store link?',
+      'Going well': 'Strong recent activity — keep doing what works.',
+    };
+    const TYPE_CLS = {
+      'Hand-off quality': '',
+      'High demand, low referral': '',
+      'Open quotes, low referral': 'ok',
+      'Low conversion': 'soft',
+      'Quiet week': 'soft',
+      'Going well': 'ok',
+    };
+
+    // Demand thresholds (YTD partnership)
+    const demandStores = Object.keys(by).map(k => by[k]).filter(b => b.storeTrt !== '(Unmapped)');
+    const opps = [];
+
+    demandStores.forEach(b => {
+      if (b.storeTrt === '(Unmapped)' || !b.storeTrt && !b.store) return;
+      const ref = lookupReferral(b.storeTrt, b.store) || { visitors: 0, leads: 0, orders: 0 };
+      if (!b.leader || b.leader === '—' || b.leader === '-') {
+        const lead = leaderForStore(b.storeTrt, b.store);
+        if (lead) b.leader = lead;
+      }
+      const vis = ref.visitors || 0;
+      const lowRef = vis <= 4; // 0–4 influenced visits
+      const highOrders = b.oYTD >= 12;
+      const highQuotes = b.qYTD >= 25 || b.open >= 20;
+      const highDemand = highOrders || highQuotes;
+      const softLW = b.oPW >= 2 && b.oLW <= b.oPW * 0.75;
+      const softQ = b.qPW >= 3 && b.qLW <= b.qPW * 0.7;
+      const convPct = b.qYTD ? b.convYTD / b.qYTD : null;
+
+      let type = '';
+      let typeCls = '';
+      let score = 0;
+      let evidence = '';
+      let move = '';
+
+      // Exclude zero-activity sites (no never-ordered chase list)
+      if ((b.oYTD || 0) === 0 && (b.qYTD || 0) === 0 && (b.open || 0) === 0) return;
+
+      const leads = ref.leads || 0;
+      if (vis >= 5 && leads === 0 && (highDemand || b.open >= 8 || b.qYTD >= 15)) {
+        type = 'Hand-off quality';
+        typeCls = TYPE_CLS[type];
+        score = 220 + vis + b.open * 2 + b.oYTD;
+        evidence = fmt(vis) + ' influenced visits · 0 assisted leads · YTD ' + fmt(b.oYTD) +
+          ' orders · ' + fmt(b.open) + ' open quotes';
+        move = TYPE_MOVE[type];
+      } else if (highDemand && lowRef) {
+        // Primary list: high demand, weak referral
+        if (highOrders && (b.open >= 15 || highQuotes)) {
+          type = 'High demand, low referral';
+          typeCls = TYPE_CLS[type];
+          // score: more orders/open, fewer visits = higher priority
+          score = 200 + b.oYTD * 2 + b.open + b.qYTD * 0.5 - vis * 5;
+          evidence = 'YTD ' + fmt(b.oYTD) + ' orders · ' + fmt(b.qYTD) + ' quotes · ' +
+            fmt(b.open) + ' open quotes · LW ' + fmt(b.oLW) + ' ord / ' + fmt(b.qLW) + ' q';
+          move = TYPE_MOVE[type];
+        } else if (b.open >= 20 || (b.qYTD >= 30 && b.open >= 12)) {
+          type = 'Open quotes, low referral';
+          typeCls = TYPE_CLS[type];
+          score = 150 + b.open * 2 + b.qYTD - vis * 5;
+          evidence = fmt(b.open) + ' open quotes · YTD ' + fmt(b.oYTD) + ' orders · ' +
+            fmt(b.qYTD) + ' quotes · LW ' + fmt(b.oLW) + ' ord / ' + fmt(b.qLW) + ' q';
+          move = TYPE_MOVE[type];
+        } else if (highOrders) {
+          type = 'High demand, low referral';
+          typeCls = TYPE_CLS[type];
+          score = 180 + b.oYTD * 2 + b.qYTD * 0.3 - vis * 5;
+          evidence = 'YTD ' + fmt(b.oYTD) + ' orders · ' + fmt(b.qYTD) + ' quotes · ' +
+            fmt(b.open) + ' open quotes · LW ' + fmt(b.oLW) + ' ord / ' + fmt(b.qLW) + ' q';
+          move = TYPE_MOVE[type];
+        }
+      } else if (b.qYTD >= 20 && convPct != null && convPct < 0.12 && b.open >= 5) {
+        type = 'Low conversion';
+        typeCls = TYPE_CLS[type];
+        score = 100 + b.qYTD + b.open - (convPct * 100);
+        evidence = 'YTD conv ' + fmtPct(convPct) + ' on ' + fmt(b.qYTD) + ' quotes · ' +
+          fmt(b.open) + ' open · YTD ' + fmt(b.oYTD) + ' orders';
+        move = TYPE_MOVE[type];
+      } else if ((softLW || softQ) && highDemand) {
+        type = 'Quiet week';
+        typeCls = TYPE_CLS[type];
+        score = 80 + (b.oPW - b.oLW) + (b.qPW - b.qLW);
+        evidence = 'LW ' + fmt(b.oLW) + ' ord / ' + fmt(b.qLW) + ' q vs PW ' +
+          fmt(b.oPW) + ' / ' + fmt(b.qPW) + ' · YTD ' + fmt(b.oYTD) + ' orders';
+        move = TYPE_MOVE[type];
+      } else if (b.oYTD >= 15 && b.oLW >= 2 && vis >= 5) {
+        type = 'Going well';
+        typeCls = TYPE_CLS[type];
+        score = 20 + b.oLW + Math.min(vis, 20);
+        evidence = 'LW ' + fmt(b.oLW) + ' orders · YTD ' + fmt(b.oYTD) +
+          (convPct != null ? ' · conv ' + fmtPct(convPct) : '');
+        move = TYPE_MOVE[type];
+      } else {
+        return;
+      }
+
+      if (!type) return;
+
+      // Local note removed in the sample copy
+      const bNote = (typeof bristolCityRingNote === 'function')
+        ? bristolCityRingNote(b.storeTrt, b.store) : '';
+      if (bNote) evidence = evidence + ' · ' + bNote;
+
+      // Local focus only (shared playbook sits on the type group header)
+      let localFocus = '';
+      const topN = topQuoteNuts(b.storeTrt);
+      if (topN && topN.n > 0) {
+        localFocus = topN.name + ' (' + fmt(topN.n) + ' quotes)';
+      }
+
+      // Avoid repeating the visit count in evidence
+      if (!/Referral:\s*\d+\s*visitors/i.test(evidence)) {
+        evidence = (evidence ? evidence + ' · ' : '') +
+          fmt(vis) + ' influenced visit' + (vis === 1 ? '' : 's');
+      }
+
+      // Tidy evidence: drop duplicate influenced-visit tails
+      evidence = String(evidence || '').replace(/(\d+ influenced visits?)(?:\s*·\s*\1)+/gi, '$1');
+      evidence = evidence.replace(/(\d+ influenced visits?)(.*?)\s*·\s*\1\b/gi, '$1$2');
+      opps.push({
+        storeTrt: b.storeTrt,
+        store: b.store,
+        leader: b.leader,
+        type: type,
+        typeCls: typeCls,
+        score: score,
+        evidence: evidence,
+        localFocus: localFocus,
+        oYTD: b.oYTD,
+        open: b.open,
+        oLW: b.oLW,
+        qLW: b.qLW,
+        refVisitors: vis,
+        refLeads: leads,
+      });
+    });
+
+    // Backfill leaders from the sample referral file
+    Object.keys(by).forEach(function (k) {
+      const b = by[k];
+      if (b.leader) return;
+      const lead = leaderForStore(b.storeTrt, b.store);
+      if (lead) b.leader = lead;
+    });
+
+    // Prefer action types; fill to 5 stores
+    const prefer = opps.filter(function (o) {
+      return o.type === 'Hand-off quality' || o.type === 'High demand, low referral' ||
+        o.type === 'Open quotes, low referral' || o.type === 'Low conversion' || o.type === 'Quiet week';
+    }).sort(function (a, b) {
+      return b.score - a.score || (b.oYTD || 0) - (a.oYTD || 0) || String(a.store).localeCompare(String(b.store));
+    });
+    const peers = opps.filter(function (o) { return o.type === 'Going well'; })
+      .sort(function (a, b) { return b.score - a.score || String(a.store).localeCompare(String(b.store)); });
+    let picked = prefer.slice(0, 5);
+    if (picked.length < 5) {
+      picked = picked.concat(peers.slice(0, 5 - picked.length));
+    }
+    picked = picked.slice(0, 5);
+
+    // Group by type — shared playbook once per group
+    const groups = [];
+    TYPE_ORDER.forEach(function (typeName) {
+      const items = picked.filter(function (o) { return o.type === typeName; })
+        .sort(function (a, b) {
+          if (typeName === 'Hand-off quality' || typeName === 'High demand, low referral' ||
+              typeName === 'Open quotes, low referral') {
+            return (b.oYTD || 0) - (a.oYTD || 0) || (b.open || 0) - (a.open || 0) ||
+              (a.refVisitors || 0) - (b.refVisitors || 0) || String(a.store).localeCompare(String(b.store));
+          }
+          return b.score - a.score || String(a.store).localeCompare(String(b.store));
+        });
+      if (items.length) {
+        groups.push({
+          type: typeName,
+          typeCls: TYPE_CLS[typeName] || '',
+          playbook: TYPE_MOVE[typeName] || '',
+          items: items,
+        });
+      }
+    });
+
+    const tb = $('tblAction') && $('tblAction').querySelector('tbody');
+    if (!tb) return;
+
+    if (!groups.length) {
+      tb.innerHTML = '<tr><td colspan="4">No opportunities in current filters — try clearing filters.</td></tr>';
+      return;
+    }
+
+    let html = '';
+    groups.forEach(function (g) {
+      const pill = '<span class="type-pill ' + esc(g.typeCls) + '">' + esc(g.type) + '</span>';
+      const play = g.playbook
+        ? '<span class="opp-play">' + esc(g.playbook) + '</span>'
+        : '';
+      html += '<tr class="opp-group"><td colspan="4">' + pill + play + '</td></tr>';
+      g.items.forEach(function (r) {
+        const trAttr = r.storeTrt
+          ? ' data-store="' + esc(r.storeTrt) + '" style="cursor:pointer"'
+          : '';
+        const focus = r.localFocus
+          ? esc(r.localFocus)
+          : '<span class="focus-muted">No standout quote cluster</span>';
+        html += '<tr' + trAttr + '>';
+        html += '<td>' + esc(r.store) + '</td>';
+        html += '<td>' + esc(r.leader || '—') + '</td>';
+        html += '<td class="evidence-cell">' + esc(r.evidence) + '</td>';
+        html += '<td class="focus-cell">' + focus + '</td>';
+        html += '</tr>';
+      });
+    });
+    tb.innerHTML = html;
+
+    tb.querySelectorAll('tr[data-store]').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        const s = tr.getAttribute('data-store');
+        if (!s) return;
+        state.store = s;
+        $('fStore').value = s;
+        renderAll();
+      });
+    });
+  }
+
+
+  function renderMix(orders, quotes) {
+    const mix = {};
+    orders.forEach(o => {
+      const k = o.productMix || 'Unknown';
+      mix[k] = (mix[k]||0)+1;
+    });
+    const labels = Object.keys(mix).sort((a,b) => mix[b]-mix[a]);
+    if (chartMix) chartMix.destroy();
+    chartMix = new Chart($('chartMix'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: labels.map(l => mix[l]), backgroundColor: labels.map((_,i)=>COLORS[i%COLORS.length]) }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right' },
+          datalabels: {
+            color: '#111', font: { weight: 'bold', size: 11 },
+            formatter: (v, ctx) => {
+              const t = ctx.dataset.data.reduce((a,b)=>a+b,0);
+              return t ? Math.round(v/t*100)+'%' : '';
+            }
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+
+    const statusOrder = ['Pending', 'Signed off', 'Ready for audit', 'Cancelled'];
+    const statusCounts = { 'Pending': 0, 'Signed off': 0, 'Ready for audit': 0, 'Cancelled': 0 };
+    const statusColors = {
+      'Pending': '#F9A825',
+      'Signed off': '#2E7D32',
+      'Ready for audit': '#1F4E78',
+      'Cancelled': '#C62828',
+    };
+    orders.forEach(o => {
+      const st = String(o.status || '').trim();
+      const key = statusOrder.find(k => k.toLowerCase() === st.toLowerCase());
+      if (key) statusCounts[key]++;
+      else if (isCancelledOrder(o)) statusCounts['Cancelled']++;
+    });
+    if (chartOrderStatus) chartOrderStatus.destroy();
+    chartOrderStatus = new Chart($('chartOrderStatus'), {
+      type: 'doughnut',
+      data: {
+        labels: statusOrder,
+        datasets: [{
+          data: statusOrder.map(k => statusCounts[k]),
+          backgroundColor: statusOrder.map(k => statusColors[k]),
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right' },
+          datalabels: {
+            color: '#111', font: { weight: 'bold', size: 11 },
+            formatter: (v, ctx) => {
+              if (!v) return '';
+              const t = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              return t ? Math.round(v / t * 100) + '%' : '';
+            }
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+
+    const qOpen = quotes.filter(isValidOpenQuote).length;
+    const qExp = quotes.filter(q => !q.isConverted && isQuoteExpired(q)).length;
+    if (chartQuoteStatus) chartQuoteStatus.destroy();
+    chartQuoteStatus = new Chart($('chartQuoteStatus'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Open (valid)', 'Expired'],
+        datasets: [{ data: [qOpen, qExp], backgroundColor: ['#2E7D32', '#1F4E78'] }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right' },
+          datalabels: {
+            color: '#111', font: { weight: 'bold', size: 11 },
+            formatter: (v, ctx) => {
+              if (!v) return '';
+              const t = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+              return t ? Math.round(v / t * 100) + '%' : '';
+            }
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
+
+
+
+  function isExcludedLocationName(n) {
+    n = String(n || '');
+    if (!n) return true;
+    // Display names only (do not test TRT codes like EU-GB-...)
+    if (/self-?serve\s*test\s*drive/i.test(n)) return true;
+    if (/\bvirtual\b/i.test(n)) return true;
+    if (/^Tesla Virtual\b/i.test(n)) return true;
+    return false;
+  }
+
+  function storeDirectory() {
+    // Canonical store names matching the Location filter
+    const byTrt = {};
+    const byName = {};
+    (DATA.stores || []).forEach(function (s) {
+      if (!s || isExcludedLocationName(s.storeName || s.storeTrt)) return;
+      if (s.storeTrt) byTrt[s.storeTrt] = s;
+      if (s.storeName) byName[String(s.storeName).toLowerCase()] = s;
+    });
+    return { byTrt: byTrt, byName: byName };
+  }
+
+
+  function canonicalStore(storeTrt, storeName, manager) {
+    const dir = storeDirectory();
+    if (storeTrt && dir.byTrt[storeTrt]) {
+      const s = dir.byTrt[storeTrt];
+      return {
+        storeTrt: s.storeTrt || storeTrt,
+        storeName: s.storeName || storeName || storeTrt,
+        manager: s.manager || manager || '',
+      };
+    }
+    const nk = String(storeName || '').toLowerCase();
+    if (nk && dir.byName[nk]) {
+      const s = dir.byName[nk];
+      return {
+        storeTrt: s.storeTrt || storeTrt || '',
+        storeName: s.storeName || storeName,
+        manager: s.manager || manager || '',
+      };
+    }
+
+    const raw = String(storeName || storeTrt || '');
+    const aliases = [];
+    for (let i = 0; i < aliases.length; i++) {
+      if (aliases[i].re.test(raw)) {
+        const s = dir.byName[aliases[i].name.toLowerCase()];
+        if (s) {
+          return {
+            storeTrt: s.storeTrt || storeTrt || '',
+            storeName: s.storeName,
+            manager: s.manager || manager || '',
+          };
+        }
+        return {
+          storeTrt: storeTrt || '',
+          storeName: aliases[i].name,
+          manager: manager || '',
+        };
+      }
+    }
+
+    const cleaned = raw
+      .replace(/^Tesla\s+/i, '')
+      .replace(/\s*Refe(rral)?.*$/i, '')
+      .replace(/[_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    if (cleaned.length >= 4) {
+      let best = null;
+      let bestScore = 0;
+      Object.keys(dir.byTrt).forEach(function (k) {
+        const s = dir.byTrt[k];
+        const sn = String(s.storeName || '').toLowerCase();
+        const core = sn.replace(/^tesla\s+(centre|pop up|store)\s*-?\s*/i, '').trim();
+        if (!core) return;
+        if (sn === cleaned || core === cleaned) { best = s; bestScore = 100; return; }
+        if (sn.indexOf(cleaned) >= 0 || cleaned.indexOf(core) >= 0 || core.indexOf(cleaned) >= 0) {
+          const score = Math.min(cleaned.length, core.length);
+          if (score > bestScore) { best = s; bestScore = score; }
+        }
+      });
+      if (best && bestScore >= 5) {
+        return {
+          storeTrt: best.storeTrt || storeTrt || '',
+          storeName: best.storeName || storeName,
+          manager: best.manager || manager || '',
+        };
+      }
+    }
+
+    if (/refe/i.test(raw) && !dir.byTrt[storeTrt || '']) {
+      return { storeTrt: '', storeName: '', manager: '' };
+    }
+
+    return {
+      storeTrt: storeTrt || '',
+      storeName: storeName || storeTrt || '(Unmapped)',
+      manager: manager || '',
+    };
+  }
+
+
+
+
+  function renderStoreTable(orders, quotes) {
+    const pO = periodOrders(orders);
+    const pQ = periodQuotes(quotes);
+    const by = {};
+
+    function bump(storeTrt, storeName, manager) {
+      const can = canonicalStore(storeTrt, storeName, manager);
+      if (!can.storeName || isExcludedLocationName(can.storeName)) return null;
+      const k = can.storeTrt || can.storeName;
+      if (!k || k === '(Unmapped)') return null;
+      if (!by[k]) {
+        by[k] = {
+          storeTrt: can.storeTrt,
+          storeName: can.storeName,
+          manager: can.manager,
+          orders: 0,
+          quotes: 0,
+          nutsOrders: {},
+        };
+      }
+      const b = by[k];
+      // Prefer canonical name/manager
+      if (can.storeName) b.storeName = can.storeName;
+      if (can.manager && !b.manager) b.manager = can.manager;
+      return b;
+    }
+
+    pO.forEach(function (o) {
+      const b = bump(o.storeTrt, o.storeName, o.storeManager);
+      if (!b) return;
+      b.orders++;
+      if (o.nuts3) {
+        const nk = o.nuts3;
+        if (!b.nutsOrders[nk]) {
+          b.nutsOrders[nk] = {
+            code: nk,
+            name: o.nuts3Name || DATA.nutsNames[nk] || nk,
+            n: 0,
+          };
+        }
+        b.nutsOrders[nk].n += 1;
+      }
+    });
+    pQ.forEach(function (q) {
+      const b = bump(q.storeTrt, q.storeName, q.storeManager);
+      if (!b) return;
+      b.quotes++;
+    });
+
+    // Referral-only stores: map to canonical filter names
+    const R = window.SAMPLE_REFERRAL;
+    if (R && R.stores) {
+      R.stores.forEach(function (s) {
+        if (state.store && s.storeTrt && s.storeTrt !== state.store) return;
+        if (state.leader && s.manager && s.manager !== state.leader) return;
+        bump(s.storeTrt, s.storeName, s.manager);
+      });
+    }
+
+    Object.keys(by).forEach(function (k) {
+      const b = by[k];
+      if (!b.manager) {
+        const lead = leaderForStore(b.storeTrt, b.storeName || b.store);
+        if (lead) b.manager = lead;
+      }
+    });
+    const rows = Object.keys(by).map(function (k) {
+      const b = by[k];
+      const ref = lookupReferral(b.storeTrt, b.storeName) || { visitors: 0, leads: 0, orders: 0 };
+      const nutsList = Object.values(b.nutsOrders || {}).sort(function (a, c) { return c.n - a.n; });
+      const nutsHtml = nutsList.length
+        ? nutsList.map(function (n) {
+            return esc(n.name) + ' (' + esc(n.code) + '): ' + fmt(n.n);
+          }).join('<br>')
+        : '—';
+      return {
+        storeTrt: b.storeTrt,
+        storeName: b.storeName,
+        manager: b.manager,
+        orders: b.orders,
+        quotes: b.quotes,
+        refVisitors: ref.visitors || 0,
+        refOrders: ref.orders || 0,
+        nutsHtml: nutsHtml,
+      };
+    }).filter(function (r) {
+      return !isExcludedLocationName(r.storeName);
+    }).sort(function (a, b) {
+      return b.refVisitors - a.refVisitors || b.orders - a.orders ||
+        String(a.storeName).localeCompare(String(b.storeName));
+    });
+
+    const tb = $('tblStores') && $('tblStores').querySelector('tbody');
+    if (!tb) return;
+    tb.innerHTML = rows.map(function (r, i) {
+      const cls = i === 0 ? ' class="top1"' : '';
+      return '<tr' + cls + ' data-store="' + esc(r.storeTrt) + '" style="cursor:pointer">' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + esc(r.storeName) + '</td>' +
+        '<td>' + esc(r.manager) + '</td>' +
+        '<td class="td-num">' + fmt(r.refVisitors) + '</td>' +
+        '<td class="td-num">' + fmt(r.refOrders) + '</td>' +
+        '<td class="td-num">' + fmt(r.orders) + '</td>' +
+        '<td class="td-num">' + fmt(r.quotes) + '</td>' +
+        '<td class="nuts-break">' + r.nutsHtml + '</td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="8">No stores in filter</td></tr>';
+
+    tb.querySelectorAll('tr[data-store]').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        const s = tr.getAttribute('data-store');
+        if (!s || s === '(Unmapped)') return;
+        state.store = s;
+        $('fStore').value = s;
+        renderAll();
+      });
+    });
+  }
+
+
+  function nutsRowsFrom(orders, quotes) {
+    const { oB, tB, cB, solarB, qBy, meta } = nutsAgg(orders, quotes);
+    const keys = uniqueSorted(Object.keys(oB).concat(Object.keys(qBy))).filter(k => k !== '(none)');
+    return keys.map(k => {
+      const o = oB[k] || 0;
+      const qs = qBy[k] || [];
+      const conv = qs.filter(q => q.isConverted).length;
+      return {
+        k,
+        name: (meta[k] || {}).name || k,
+        store: (meta[k] || {}).store || '',
+        leader: (meta[k] || {}).leader || '',
+        orders: o,
+        quotes: qs.length,
+        conv,
+        convPct: qs.length ? conv / qs.length : null,
+        canc: cB[k] || 0,
+        tesla: tB[k] || 0,
+        teslaPct: o ? (tB[k] || 0) / o : null,
+      };
+    });
+  }
+
+  function renderNutsTable(orders, quotes) {
+    if (!$('tblNuts')) return;
+    const pO = periodOrders(orders);
+    const pQ = periodQuotes(quotes);
+    const rows = nutsRowsFrom(pO, pQ).sort((a,b) => b.orders - a.orders || b.quotes - a.quotes);
+    const tb = $('tblNuts').querySelector('tbody');
+    tb.innerHTML = rows.map((r, i) => {
+      const cls = i === 0 ? ' class="top1"' : '';
+      return `<tr${cls} data-nuts="${esc(r.k)}" style="cursor:pointer">
+        <td>${i+1}</td>
+        <td>${esc(r.k)}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.store)}</td>
+        <td>${esc(r.leader)}</td>
+        <td class="td-num">${fmt(r.orders)}</td>
+        <td class="td-num">${fmt(r.quotes)}</td>
+        <td class="td-num">${fmt(r.canc)}</td>
+        <td class="td-num">${fmtPct(r.convPct)}</td>
+        <td class="td-num">${fmtPct(r.teslaPct)}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10">No Region Level 2 rows in filter</td></tr>';
+
+    tb.querySelectorAll('tr[data-nuts]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        state.nuts3 = tr.getAttribute('data-nuts');
+        $('fNuts3').value = state.nuts3;
+        renderAll();
+      });
+    });
+  }
+
+  function pubDateLabel() {
+    const raw = (DATA.generatedAt || '').slice(0, 10);
+    if (!raw) return '—';
+    const d = new Date(raw + 'T00:00:00');
+    if (isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function renderAll() {
+    $('lastUpdated').textContent = 'Last Updated: ' + pubDateLabel();
+    const { orders, quotes } = filteredSets();
+    renderKeyInsight();
+    renderFinding();
+    renderKPIs(orders, quotes);
+    renderMaps(orders, quotes);
+    renderNutsPanel(orders, quotes);
+    renderActionList();
+    renderMix(orders, quotes);
+    renderStoreTable(orders, quotes);
+    renderNutsTable(orders, quotes);
+  }
+
+  $('lastUpdated').textContent = 'Last Updated: ' + pubDateLabel();
+  if ($('ownerNote')) { $('ownerNote').style.display = 'none'; }
+  buildFilters();
+  initMaps();
+  renderAll();
+  setTimeout(() => { mapMain.invalidateSize(); }, 200);
+})();
+</script>
+</body>
+</html>
